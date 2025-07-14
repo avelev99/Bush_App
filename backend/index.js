@@ -1,38 +1,33 @@
-const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
+const createApp = require('./app');
 require('dotenv').config();
 
-const apiRouter = require('./src/api');
+async function startServer() {
+    const { MONGO_URI, JWT_SECRET } = process.env;
+    if (!MONGO_URI || !JWT_SECRET) {
+        console.error('Missing required environment variables. Please copy .env.example to .env and fill in the values.');
+        process.exit(1);
+    }
 
-const app = express();
+    const app = createApp();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log('MongoDB connected');
+    } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+    }
 
-// Database connection
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => {
-    console.log('MongoDB connected');
-}).catch(err => {
-    console.error(err.message);
-    process.exit(1);
-});
+    const PORT = process.env.PORT || 5000;
+    return app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
 
-// Routes
-app.use('/api', apiRouter);
+if (require.main === module) {
+    startServer();
+}
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
-});
+module.exports = { startServer, createApp };
 
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
